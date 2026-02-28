@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Video,
   Clock,
@@ -12,8 +12,9 @@ import {
   Copy,
   Download,
   CloudDownload,
+  GripVertical,
 } from 'lucide-react';
-import { ugcScripts, ugcTypeLabel, type UgcScript, type AdStatus, type UgcScriptType } from '../data/sampleData';
+import { ugcScripts as initialScripts, ugcTypeLabel, type UgcScript, type AdStatus, type UgcScriptType } from '../data/sampleData';
 
 const columns: { id: AdStatus; label: string; color: string; dotColor: string }[] = [
   { id: 'draft', label: 'Draft', color: 'text-text-muted', dotColor: 'bg-text-muted' },
@@ -21,6 +22,21 @@ const columns: { id: AdStatus; label: string; color: string; dotColor: string }[
   { id: 'ready', label: 'Ready', color: 'text-green-400', dotColor: 'bg-green-400' },
   { id: 'exported', label: 'Exported', color: 'text-blue-400', dotColor: 'bg-blue-400' },
 ];
+
+function statusLabel(s: AdStatus): string {
+  const labels: Record<AdStatus, string> = { draft: 'Draft', review: 'In Review', ready: 'Ready', exported: 'Exported' };
+  return labels[s];
+}
+
+function statusDotColor(s: AdStatus): string {
+  const c: Record<AdStatus, string> = { draft: 'bg-text-muted', review: 'bg-amber-400', ready: 'bg-green-400', exported: 'bg-blue-400' };
+  return c[s];
+}
+
+function statusTextColor(s: AdStatus): string {
+  const c: Record<AdStatus, string> = { draft: 'text-text-muted', review: 'text-amber-400', ready: 'text-green-400', exported: 'text-blue-400' };
+  return c[s];
+}
 
 function durationBadge(d: string): string {
   if (d === '15s') return 'bg-green-500/10 text-green-400';
@@ -272,23 +288,52 @@ function GenerateModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-/* ─── Script Detail Modal ─── */
+/* ─── Product Detail Modal (Multi-Angle View) ─── */
 
-function ScriptModal({ script, onClose }: { script: UgcScript; onClose: () => void }) {
+function ProductModal({
+  product,
+  angles,
+  onClose,
+}: {
+  product: string;
+  angles: UgcScript[];
+  onClose: () => void;
+}) {
+  const [activeAngle, setActiveAngle] = useState(0);
   const [copied, setCopied] = useState(false);
+
+  const current = angles[activeAngle];
 
   const handleCopy = () => {
     const lines = [
-      `Product: ${script.product}`,
-      `Type: ${ugcTypeLabel(script.type)} | Duration: ${script.duration}`,
-      `Hook: "${script.hook}"`,
+      `Product: ${current.product}`,
+      `Angle: ${ugcTypeLabel(current.type)} | Duration: ${current.duration}`,
+      `Hook: "${current.hook}"`,
       '',
       'Scene Breakdown:',
-      ...script.scenes.map((s) => `[${s.timestamp}] ${s.direction}${s.voiceover ? `\nVO: "${s.voiceover}"` : ''}`),
+      ...current.scenes.map((s) => `[${s.timestamp}] ${s.direction}${s.voiceover ? `\nVO: "${s.voiceover}"` : ''}`),
       '',
-      `CTA: ${script.cta}`,
+      `CTA: ${current.cta}`,
     ];
     navigator.clipboard.writeText(lines.join('\n'));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyAll = () => {
+    const allLines = angles.map((angle, i) => {
+      const lines = [
+        `--- Angle ${i + 1}: ${ugcTypeLabel(angle.type)} (${angle.duration}) ---`,
+        `Hook: "${angle.hook}"`,
+        '',
+        'Scene Breakdown:',
+        ...angle.scenes.map((s) => `[${s.timestamp}] ${s.direction}${s.voiceover ? `\nVO: "${s.voiceover}"` : ''}`),
+        '',
+        `CTA: ${angle.cta}`,
+      ];
+      return lines.join('\n');
+    });
+    navigator.clipboard.writeText(`Product: ${product}\n\n${allLines.join('\n\n')}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -297,25 +342,20 @@ function ScriptModal({ script, onClose }: { script: UgcScript; onClose: () => vo
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
-        className="relative bg-bg-card rounded-xl border border-border-default max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-2xl"
+        className="relative bg-bg-card rounded-xl border border-border-default max-w-3xl w-full max-h-[88vh] overflow-hidden shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle sticky top-0 bg-bg-card rounded-t-xl z-10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle bg-bg-card rounded-t-xl shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-bg-elevated flex items-center justify-center">
               <Video className="w-4 h-4 text-text-secondary" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-text-primary">{script.product}</p>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${typeBadgeColor(script.type)}`}>
-                  {ugcTypeLabel(script.type)}
-                </span>
-                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${durationBadge(script.duration)}`}>
-                  {script.duration}
-                </span>
-              </div>
+              <p className="text-sm font-semibold text-text-primary">{product}</p>
+              <p className="text-[11px] text-text-muted">
+                {angles.length} angle{angles.length !== 1 ? 's' : ''} generated
+              </p>
             </div>
           </div>
           <button
@@ -326,19 +366,55 @@ function ScriptModal({ script, onClose }: { script: UgcScript; onClose: () => vo
           </button>
         </div>
 
-        {/* Modal body */}
-        <div className="px-6 py-5 space-y-5">
+        {/* Angle tabs */}
+        <div className="px-6 pt-3 pb-0 border-b border-border-subtle shrink-0">
+          <div className="flex gap-1 overflow-x-auto">
+            {angles.map((angle, i) => (
+              <button
+                key={angle.id}
+                onClick={() => setActiveAngle(i)}
+                className={`flex items-center gap-2 px-3 py-2.5 text-xs font-medium rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${
+                  i === activeAngle
+                    ? 'border-text-primary text-text-primary bg-bg-elevated/50'
+                    : 'border-transparent text-text-muted hover:text-text-secondary hover:bg-bg-elevated/30'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDotColor(angle.status)}`} />
+                <span>Angle {i + 1}</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${typeBadgeColor(angle.type)}`}>
+                  {ugcTypeLabel(angle.type)}
+                </span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded ${durationBadge(angle.duration)}`}>
+                  {angle.duration}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Active angle content */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {/* Status + meta row */}
+          <div className="flex items-center gap-3">
+            <span className={`flex items-center gap-1.5 text-[11px] font-medium ${statusTextColor(current.status)}`}>
+              <span className={`w-2 h-2 rounded-full ${statusDotColor(current.status)}`} />
+              {statusLabel(current.status)}
+            </span>
+            <span className="text-border-subtle">|</span>
+            <span className="text-[11px] text-text-muted">{current.scenes.length} scenes</span>
+          </div>
+
           {/* Hook */}
           <div>
             <p className="text-[10px] uppercase tracking-wider text-text-muted mb-1.5">Opening Hook</p>
-            <p className="text-sm text-text-primary font-medium italic leading-relaxed">"{script.hook}"</p>
+            <p className="text-sm text-text-primary font-medium italic leading-relaxed">"{current.hook}"</p>
           </div>
 
           {/* Scene breakdown */}
           <div>
             <p className="text-[10px] uppercase tracking-wider text-text-muted mb-3">Scene Breakdown</p>
             <div className="space-y-3">
-              {script.scenes.map((scene, i) => (
+              {current.scenes.map((scene, i) => (
                 <div key={i} className="flex gap-3 bg-bg-elevated rounded-lg p-3">
                   <span className="text-text-muted font-mono text-[10px] shrink-0 w-20 pt-0.5">
                     {scene.timestamp}
@@ -357,77 +433,168 @@ function ScriptModal({ script, onClose }: { script: UgcScript; onClose: () => vo
           {/* CTA */}
           <div className="pt-2 border-t border-border-subtle">
             <p className="text-[10px] uppercase tracking-wider text-text-muted mb-1.5">Call to Action</p>
-            <p className="text-sm font-medium text-text-primary">{script.cta}</p>
+            <p className="text-sm font-medium text-text-primary">{current.cta}</p>
           </div>
         </div>
 
         {/* Footer actions */}
-        <div className="px-6 py-4 border-t border-border-subtle flex items-center justify-end gap-2">
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-text-secondary bg-bg-elevated border border-border-subtle hover:border-border-hover px-3 py-2 rounded-lg transition-colors"
-          >
-            {copied ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
-            {copied ? 'Copied' : 'Copy Script'}
-          </button>
-          <button className="flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-text-secondary bg-bg-elevated border border-border-subtle hover:border-border-hover px-3 py-2 rounded-lg transition-colors">
-            <Download className="w-3 h-3" />
-            Download
-          </button>
-          <button className="flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-text-secondary bg-bg-elevated border border-border-subtle hover:border-border-hover px-3 py-2 rounded-lg transition-colors">
-            <CloudDownload className="w-3 h-3" />
-            Google Drive
-          </button>
+        <div className="px-6 py-4 border-t border-border-subtle flex items-center justify-between shrink-0">
+          <p className="text-[11px] text-text-muted">
+            Viewing angle {activeAngle + 1} of {angles.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-text-secondary bg-bg-elevated border border-border-subtle hover:border-border-hover px-3 py-2 rounded-lg transition-colors"
+            >
+              {copied ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
+              {copied ? 'Copied' : 'Copy This Angle'}
+            </button>
+            <button
+              onClick={handleCopyAll}
+              className="flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-text-secondary bg-bg-elevated border border-border-subtle hover:border-border-hover px-3 py-2 rounded-lg transition-colors"
+            >
+              <Copy className="w-3 h-3" />
+              Copy All Angles
+            </button>
+            <button className="flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-text-secondary bg-bg-elevated border border-border-subtle hover:border-border-hover px-3 py-2 rounded-lg transition-colors">
+              <Download className="w-3 h-3" />
+              Download
+            </button>
+            <button className="flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-text-secondary bg-bg-elevated border border-border-subtle hover:border-border-hover px-3 py-2 rounded-lg transition-colors">
+              <CloudDownload className="w-3 h-3" />
+              Google Drive
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-/* ─── Script Card ─── */
+/* ─── Script Card (Draggable) ─── */
 
-function ScriptCard({ script, onClick }: { script: UgcScript; onClick: () => void }) {
+function ScriptCard({
+  script,
+  allScripts,
+  onClick,
+  onDragStart,
+}: {
+  script: UgcScript;
+  allScripts: UgcScript[];
+  onClick: () => void;
+  onDragStart: (e: React.DragEvent, id: string) => void;
+}) {
+  const angleCount = allScripts.filter((s) => s.product === script.product).length;
+
   return (
-    <button
+    <div
+      draggable
+      onDragStart={(e) => onDragStart(e, script.id)}
       onClick={onClick}
-      className="w-full text-left bg-bg-elevated rounded-lg p-3.5 border border-border-subtle hover:border-border-hover transition-all group"
+      className="w-full text-left bg-bg-elevated rounded-lg p-3.5 border border-border-subtle hover:border-border-hover transition-all group cursor-grab active:cursor-grabbing"
     >
-      <div className="flex items-start justify-between mb-2">
-        <p className="text-xs font-semibold text-text-primary leading-snug group-hover:text-white transition-colors">
-          {script.product}
-        </p>
-        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ml-2 ${typeBadgeColor(script.type)}`}>
-          {ugcTypeLabel(script.type)}
-        </span>
+      {/* Top row: grip + product name + type badge */}
+      <div className="flex items-start gap-2 mb-2">
+        <GripVertical className="w-3.5 h-3.5 text-text-muted/40 shrink-0 mt-0.5 group-hover:text-text-muted transition-colors" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs font-semibold text-text-primary leading-snug group-hover:text-white transition-colors">
+              {script.product}
+            </p>
+            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${typeBadgeColor(script.type)}`}>
+              {ugcTypeLabel(script.type)}
+            </span>
+          </div>
+        </div>
       </div>
 
-      <p className="text-[11px] text-text-muted leading-relaxed mb-3 line-clamp-2">
+      {/* Hook excerpt */}
+      <p className="text-[11px] text-text-muted leading-relaxed mb-3 line-clamp-2 ml-5.5">
         "{script.hook}"
       </p>
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
+      {/* Bottom row: status + duration + angles + scenes */}
+      <div className="flex items-center justify-between ml-5.5">
+        <div className="flex items-center gap-2">
+          {/* Status badge */}
+          <span className={`flex items-center gap-1 text-[10px] font-medium ${statusTextColor(script.status)}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${statusDotColor(script.status)}`} />
+            {statusLabel(script.status)}
+          </span>
+          {/* Duration */}
           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${durationBadge(script.duration)}`}>
             <Clock className="w-2.5 h-2.5 inline mr-0.5" />
             {script.duration}
           </span>
         </div>
-        <span className="text-[10px] text-text-muted">{script.scenes.length} scenes</span>
+        <div className="flex items-center gap-2">
+          {angleCount > 1 && (
+            <span className="text-[10px] text-text-muted bg-bg-card px-1.5 py-0.5 rounded">
+              {angleCount} angles
+            </span>
+          )}
+          <span className="text-[10px] text-text-muted">{script.scenes.length} scenes</span>
+        </div>
       </div>
-    </button>
+    </div>
   );
 }
 
 /* ─── Main Component ─── */
 
 export default function UgcScripts() {
-  const [selectedScript, setSelectedScript] = useState<UgcScript | null>(null);
+  const [scripts, setScripts] = useState<UgcScript[]>([...initialScripts]);
+  const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const [showGenerate, setShowGenerate] = useState(false);
+  const [dragOverCol, setDragOverCol] = useState<AdStatus | null>(null);
+  const draggedId = useRef<string | null>(null);
 
+  // Drag handlers
+  const handleDragStart = (_e: React.DragEvent, id: string) => {
+    draggedId.current = id;
+  };
+
+  const handleDragOver = (e: React.DragEvent, colId: AdStatus) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverCol !== colId) setDragOverCol(colId);
+  };
+
+  const handleDragLeave = (e: React.DragEvent, colId: AdStatus) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const { clientX, clientY } = e;
+    if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) {
+      if (dragOverCol === colId) setDragOverCol(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetStatus: AdStatus) => {
+    e.preventDefault();
+    setDragOverCol(null);
+    const id = draggedId.current;
+    if (!id) return;
+    setScripts((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, status: targetStatus } : s))
+    );
+    draggedId.current = null;
+  };
+
+  const handleDragEnd = () => {
+    setDragOverCol(null);
+    draggedId.current = null;
+  };
+
+  // Group by column
   const grouped = columns.map((col) => ({
     ...col,
-    scripts: ugcScripts.filter((s) => s.status === col.id),
+    scripts: scripts.filter((s) => s.status === col.id),
   }));
+
+  // Get all angles for a product
+  const getProductAngles = (product: string): UgcScript[] => {
+    return scripts.filter((s) => s.product === product);
+  };
 
   return (
     <div className="space-y-5">
@@ -444,10 +611,10 @@ export default function UgcScripts() {
 
           {/* Summary counts */}
           <div className="flex items-center gap-4">
-            <span className="text-xs text-text-muted">{ugcScripts.length} scripts</span>
+            <span className="text-xs text-text-muted">{scripts.length} scripts</span>
             <div className="flex items-center gap-2">
               {columns.map((col) => {
-                const count = ugcScripts.filter((s) => s.status === col.id).length;
+                const count = scripts.filter((s) => s.status === col.id).length;
                 if (count === 0) return null;
                 return (
                   <span key={col.id} className="flex items-center gap-1 text-[11px] text-text-muted">
@@ -467,9 +634,19 @@ export default function UgcScripts() {
       </div>
 
       {/* Kanban board */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" onDragEnd={handleDragEnd}>
         {grouped.map((col) => (
-          <div key={col.id} className="bg-bg-card rounded-xl border border-border-subtle overflow-hidden">
+          <div
+            key={col.id}
+            onDragOver={(e) => handleDragOver(e, col.id)}
+            onDragLeave={(e) => handleDragLeave(e, col.id)}
+            onDrop={(e) => handleDrop(e, col.id)}
+            className={`bg-bg-card rounded-xl border overflow-hidden transition-colors ${
+              dragOverCol === col.id
+                ? 'border-text-primary/50 bg-bg-card/80'
+                : 'border-border-subtle'
+            }`}
+          >
             {/* Column header */}
             <div className="px-4 py-3 border-b border-border-subtle flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -482,17 +659,25 @@ export default function UgcScripts() {
             </div>
 
             {/* Column cards */}
-            <div className="p-3 space-y-2.5 min-h-[200px]">
+            <div className={`p-3 space-y-2.5 min-h-[200px] transition-colors ${
+              dragOverCol === col.id ? 'bg-text-primary/[0.03]' : ''
+            }`}>
               {col.scripts.length === 0 ? (
-                <div className="flex items-center justify-center h-32 text-text-muted text-xs">
-                  No scripts
+                <div className={`flex items-center justify-center h-32 text-xs rounded-lg border-2 border-dashed transition-colors ${
+                  dragOverCol === col.id
+                    ? 'border-text-primary/30 text-text-secondary'
+                    : 'border-transparent text-text-muted'
+                }`}>
+                  {dragOverCol === col.id ? 'Drop here' : 'No scripts'}
                 </div>
               ) : (
                 col.scripts.map((script) => (
                   <ScriptCard
                     key={script.id}
                     script={script}
-                    onClick={() => setSelectedScript(script)}
+                    allScripts={scripts}
+                    onClick={() => setSelectedProduct(script.product)}
+                    onDragStart={handleDragStart}
                   />
                 ))
               )}
@@ -503,8 +688,12 @@ export default function UgcScripts() {
 
       {/* Modals */}
       {showGenerate && <GenerateModal onClose={() => setShowGenerate(false)} />}
-      {selectedScript && (
-        <ScriptModal script={selectedScript} onClose={() => setSelectedScript(null)} />
+      {selectedProduct && (
+        <ProductModal
+          product={selectedProduct}
+          angles={getProductAngles(selectedProduct)}
+          onClose={() => setSelectedProduct(null)}
+        />
       )}
     </div>
   );
