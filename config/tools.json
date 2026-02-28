@@ -1,0 +1,28 @@
+{
+  "image_enhancement": {
+    "provider": "photoroom",
+    "api_base": "https://sdk.photoroom.com/v1",
+    "enabled": true
+  },
+  "lifestyle_scenes": {
+    "provider": "pebblely",
+    "api_base": "https://api.pebblely.com/api/v1",
+    "scenes_per_product": 3,
+    "enabled": true
+  },
+  "ugc_video": {
+    "provider": "creatify",
+    "api_base": "https://api.creatify.ai/api",
+    "avatar_id": "",
+    "enabled": true
+  },
+  "ad_copy": {
+    "provider": "openrouter",
+    "model": "deepseek/deepseek-chat",
+    "api_base": "https://openrouter.ai/api/v1"
+  },
+  "scraper": {
+    "provider": "beautifulsoup",
+    "timeout": 30
+  }
+}

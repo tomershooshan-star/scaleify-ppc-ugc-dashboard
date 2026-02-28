@@ -4,5 +4,14 @@ dist
 .env.local
 .vite
 *.log
-
 .vercel
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+data/products.json
+data/ad_copies.json
+data/ugc_scripts.json
+data/ugc_videos.json
+data/images/

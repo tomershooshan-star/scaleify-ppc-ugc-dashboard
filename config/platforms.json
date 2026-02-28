@@ -1,0 +1,40 @@
+{
+  "platforms": {
+    "meta": {
+      "enabled": true,
+      "variations_per_product": 4,
+      "char_limits": {
+        "headline": 40,
+        "primary_text": 125,
+        "description": 30
+      }
+    },
+    "google": {
+      "enabled": true,
+      "variations_per_product": 4,
+      "char_limits": {
+        "headline": 30,
+        "description_line_1": 90,
+        "description_line_2": 90
+      }
+    },
+    "tiktok": {
+      "enabled": false,
+      "variations_per_product": 2,
+      "char_limits": {
+        "ad_text": 100,
+        "caption": 150
+      }
+    },
+    "pinterest": {
+      "enabled": false,
+      "variations_per_product": 2,
+      "char_limits": {
+        "title": 100,
+        "description": 500
+      }
+    }
+  },
+  "ugc_types": ["review", "unboxing", "problem-solution"],
+  "output_format": "csv"
+}
